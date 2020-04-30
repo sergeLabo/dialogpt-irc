@@ -26,7 +26,7 @@ import threading
 import concurrent.futures
 from time import sleep
 
-from dialogpt import DialogptIrcBot, dialogpt_irc_bot_main
+from dialogpt_irc import DialogptIrcBot, dialogpt_irc_bot_main
 
 from pytorch_pretrained_bert import GPT2LMHeadModel, GPT2Tokenizer, GPT2Config
 from gpt2_training.train_utils import get_eval_list_same_length, load_model, boolean_string, fix_state_dict_namespace
@@ -167,24 +167,26 @@ def run_model():
     port = 6667
     channel = "#labomedia"
     nickname = "TheGeneral"
-    realname = "The Prisoner"
+    realname = "in The Prisoner Episode 6"
 
     bot = DialogptIrcBot(channel, nickname, realname, server, port)
     thread_dialog = threading.Thread(target=bot.start)
     thread_dialog.setDaemon(True)
     thread_dialog.start()
 
-    question = "my first question"
-    history = [question]
+    # #question_old = "Je suis un bug à la 1ère question"
+    history = []
     while True:
         a = 0
-        sleep(0.1)
-        if bot.question != history[-1]:
-            print("Question pour IA:", bot.question)
-            a = 1
-
+        num = bot.num
+        if bot.quest_rep:
+            if len(bot.quest_rep) == num + 1:
+                if len(bot.quest_rep[num]) == 1:
+                    a = 1
+                    question = bot.quest_rep[num][0]
+                    print("Question pour IA:", question)
+                        
         if a == 1:
-            question = bot.question
             history.append(question)
             context_tokens = sum([enc.encode(h) + [EOS_ID] for h in history],[]) #+ [EOS_ID]
             context_tokens = torch.tensor(context_tokens, device=device, dtype=torch.long).unsqueeze(0)
@@ -201,9 +203,11 @@ def run_model():
             history = history[-(2*args.max_history+1):]
 
             # Envoi de la réponse
-            bot.response = text
-            print("Response de l'IA:", bot.response)
-
+            print(num)
+            print(bot.quest_rep[num])
+            bot.quest_rep[num].append(text)
+            print("Response de l'IA:", text)
+            
 
 if __name__ == '__main__':
 
@@ -237,3 +241,8 @@ if __name__ == '__main__':
     logger.info('Done!\n')
 
     run_model()
+
+        # #if bot.question != question_old:
+            # #print("Question pour IA:", bot.question)
+            # #a = 1
+            # #question_old = bot.question
