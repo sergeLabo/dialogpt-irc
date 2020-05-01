@@ -16,7 +16,7 @@ import irc.bot
 import irc.strings
 from irc.client import ip_numstr_to_quad, ip_quad_to_numstr
 
-from some_response import i_am, die
+from some_response import i_am_1, i_am_2, i_am_3, die
 
 class DialogptIrcBot(irc.bot.SingleServerIRCBot):
     def __init__(self, channel, nickname, realname, server, port=6667):
@@ -28,6 +28,7 @@ class DialogptIrcBot(irc.bot.SingleServerIRCBot):
         # #self.t_block = time()
         self.num = 0
         self.quest_rep = {}
+        self.alive = 1
         
     def on_nicknameinuse(self, c, e):
         c.nick(c.get_nickname() + "_")
@@ -51,28 +52,36 @@ class DialogptIrcBot(irc.bot.SingleServerIRCBot):
     def do_command(self, e, cmd):
         
         if "quoi?" in cmd:
+            self.alive = 0
+            sleep(1)
             self.die()
         elif "who are you" in cmd:
-            text = i_am
-            self.send_pubmsg(text)
+            self.send_pubmsg(["who are you ?", "i_am"])
         elif "comment te détruire" in cmd:
             text = "Pour me détruire, posez-moi la question: quoi?"
-            self.send_pubmsg(text)
+            self.send_pubmsg(["comment te détruire ?", text])
         else:
             self.question = cmd.lower()
             self.quest_rep[self.num] = [self.question]
             while len(self.quest_rep[self.num]) == 1:
                 sleep(0.01)
             if len(self.quest_rep[self.num]) == 2:
-                self.send_pubmsg(self.quest_rep[self.num][1])
+                msg = [self.quest_rep[self.num][0],
+                        self.quest_rep[self.num][1]]
+                self.send_pubmsg(msg)
                 self.num += 1
             
     def send_pubmsg(self, msg):
-        wrapper = textwrap.TextWrapper(width=460)
-        text = wrapper.fill(text=msg)
-        lines = text.splitlines()
-        for line in lines:
-            self.connection.privmsg("#labomedia", line)
+        if msg[1] == "i_am":
+            self.connection.privmsg("#labomedia", i_am_1)
+            sleep(0.3)
+            self.connection.privmsg("#labomedia", i_am_2)
+            sleep(0.3)
+            self.connection.privmsg("#labomedia", i_am_3)
+        else:
+            self.connection.privmsg("#labomedia", "Q: " + msg[0])
+            sleep(0.1)
+            self.connection.privmsg("#labomedia", "R: " + msg[1])
 
 
 def dialogpt_irc_bot_main():
@@ -99,3 +108,10 @@ if __name__ == "__main__":
                 # #self.t_block = t
             # #else:
                 # #self.send_pubmsg("Je ne réponds pas à: " + msg[1].strip())
+
+        # #if len(msg[1]) > 460:
+            # #wrapper = textwrap.TextWrapper(width=460)
+            # #text = wrapper.fill(text=msg[1])
+            # #lines = text.splitlines()
+            # #for line in lines:
+                # #self.connection.privmsg("#labomedia", line)

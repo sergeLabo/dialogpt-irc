@@ -1,10 +1,3 @@
-#! /usr/bin/env python3
-
-"""
-DialoGPT
-"""
-
-
 import json
 from os.path import abspath, dirname, exists, join
 import argparse
@@ -22,11 +15,6 @@ from functools import partial
 from demo_utils import download_model_folder
 import argparse
 import subprocess as sp
-import threading
-import concurrent.futures
-from time import sleep
-
-from dialogpt_irc import DialogptIrcBot, dialogpt_irc_bot_main
 
 from pytorch_pretrained_bert import GPT2LMHeadModel, GPT2Tokenizer, GPT2Config
 from gpt2_training.train_utils import get_eval_list_same_length, load_model, boolean_string, fix_state_dict_namespace
@@ -90,7 +78,6 @@ def top_filtering(logits, top_k=0, top_p=0.0, threshold=-float('Inf'), filter_va
     logits[indices_to_remove] = filter_value
     return logits
 
-
 def generate_next_token(model, input_ids, position_ids=None, token_type_ids=None, prev=None, temperature=1, top_k=0, top_p=0, past=None):
     with torch.no_grad():
         if not past:
@@ -104,7 +91,6 @@ def generate_next_token(model, input_ids, position_ids=None, token_type_ids=None
         prev = torch.multinomial(probs, num_samples=1)
         return prev, probs[0][prev], past
 
-
 def generate_sequence(model, input_ids, position_ids=None, token_type_ids=None, temperature=1, top_k=0, top_p=0, length=20, past=None, device='cuda'):
     output = input_ids.new_zeros([input_ids.size(0),0])
     prev = input_ids
@@ -112,6 +98,17 @@ def generate_sequence(model, input_ids, position_ids=None, token_type_ids=None, 
         prev, probs, past = generate_next_token(model, input_ids, position_ids, token_type_ids, prev, temperature, top_k, top_p, past)
         output = torch.cat((output, prev), dim=1)
     return output
+
+def cut_seq_to_eos(sentence, remove_id=[-1]):
+    sent=[]
+    for s in sentence:
+        if s in remove_id:
+            continue
+        if s != EOS_ID:
+            sent.append(s)
+        else:
+            break
+    return sent
 
 
 def run_model():
@@ -121,7 +118,7 @@ def run_model():
     parser.add_argument("--load_checkpoint", '-c', type=str, default='')
     parser.add_argument("--fp16", type=boolean_string, default=False)
     parser.add_argument("--max_seq_length", type=int, default=128)
-
+    
     parser.add_argument("--generation_length", type=int, default=20)
     parser.add_argument("--max_history", type=int, default=2)
 
@@ -144,61 +141,33 @@ def run_model():
     torch.random.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
-    #### load the GPT-2 model
+    #### load the GPT-2 model 
     config = GPT2Config.from_json_file(os.path.join(args.model_name_or_path, 'config.json'))
     enc = GPT2Tokenizer.from_pretrained(args.model_name_or_path)
     model = load_model(GPT2LMHeadModel(config), args.load_checkpoint, args, verbose=True)
     model.to(device)
     model.eval()
 
-    server = "irc.freenode.net"
-    port = 6667
-    channel = "#labomedia"
-    nickname = "TheGeneral"
-    realname = "in The Prisoner Episode 6"
-
-    bot = DialogptIrcBot(channel, nickname, realname, server, port)
-    thread_dialog = threading.Thread(target=bot.start)
-    thread_dialog.setDaemon(True)
-    thread_dialog.start()
-
     history = []
-    sleep(1)
-    while bot.alive:
-        a = 0
-        num = bot.num
-        if bot.quest_rep:
-            if len(bot.quest_rep) == num + 1:
-                if len(bot.quest_rep[num]) == 1:
-                    a = 1
-                    question = bot.quest_rep[num][0]
-                        
-        if a == 1:
-            try:
-                history.append(question)
-                context_tokens = sum([enc.encode(h) + [EOS_ID] for h in history],[])
-                context_tokens = torch.tensor(context_tokens, device=device, dtype=torch.long).unsqueeze(0)
-                position_ids = torch.arange(0, context_tokens.size(-1), dtype=torch.long, device=context_tokens.device)
+    while True:
+        raw_text = input("USR >>> ")
+        while not raw_text:
+            print('Prompt should not be empty!')
+            raw_text = input("USR >>> ")
+        history.append(raw_text)
+        context_tokens = sum([enc.encode(h) + [EOS_ID] for h in history],[]) #+ [EOS_ID]
+        context_tokens = torch.tensor(context_tokens, device=device, dtype=torch.long).unsqueeze(0)
+        position_ids = torch.arange(0, context_tokens.size(-1), dtype=torch.long, device=context_tokens.device)
 
-                out = generate_sequence(model, context_tokens, position_ids=position_ids,
-                                        length=args.generation_length, temperature=args.temperature,
-                                        top_k=args.top_k, top_p= args.top_p)
+        out = generate_sequence(model, context_tokens, position_ids=position_ids,
+                                length=args.generation_length, temperature=args.temperature, 
+                                top_k=args.top_k, top_p= args.top_p) 
 
-                out = out.tolist()
-                text = enc.decode(cut_seq_to_eos(out[0])).encode('ascii','ignore').decode('ascii')
-
-                history.append(text)
-                history = history[-(2*args.max_history+1):]
-
-            except:
-                text = "Je ne comprends pas la question!"
-                
-            # Envoi de la réponse
-            print("\nQuestion n°:", num)
-            print("Question:", bot.quest_rep[num])
-            print("Response:", text)
-            bot.quest_rep[num].append(text)
-            
+        out = out.tolist()                        
+        text = enc.decode(cut_seq_to_eos(out[0])).encode('ascii','ignore').decode('ascii')
+        print("SYS >>> ", text)
+        history.append(text)
+        history = history[-(2*args.max_history+1):]
 
 if __name__ == '__main__':
 
@@ -230,10 +199,5 @@ if __name__ == '__main__':
     # from_scratch: True : load model trained from scratch or False: load model trained from fine-tuning the GPT-2
     target_folder = download_model(model_size='medium', dataset='multiref', from_scratch=False)
     logger.info('Done!\n')
-
+    
     run_model()
-
-        # #if bot.question != question_old:
-            # #print("Question pour IA:", bot.question)
-            # #a = 1
-            # #question_old = bot.question
