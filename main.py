@@ -1,9 +1,5 @@
 #! /usr/bin/env python3
 
-"""
-DialoGPT
-"""
-
 
 import json
 from os.path import abspath, dirname, exists, join
@@ -30,6 +26,14 @@ from dialogpt_irc import DialogptIrcBot, dialogpt_irc_bot_main
 
 from pytorch_pretrained_bert import GPT2LMHeadModel, GPT2Tokenizer, GPT2Config
 from gpt2_training.train_utils import get_eval_list_same_length, load_model, boolean_string, fix_state_dict_namespace
+
+# Serveur IRC
+SERVER = "irc.freenode.net"
+PORT = 6667
+CHANNEL = "#labomedia"
+NICKNAME = "TheGeneral"
+REALNAME = "in The Prisoner Episode 6"
+
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -151,13 +155,7 @@ def run_model():
     model.to(device)
     model.eval()
 
-    server = "irc.freenode.net"
-    port = 6667
-    channel = "#labomedia"
-    nickname = "TheGeneral"
-    realname = "in The Prisoner Episode 6"
-
-    bot = DialogptIrcBot(channel, nickname, realname, server, port)
+    bot = DialogptIrcBot(CHANNEL, NICKNAME, REALNAME, SERVER, PORT)
     thread_dialog = threading.Thread(target=bot.start)
     thread_dialog.setDaemon(True)
     thread_dialog.start()
@@ -172,7 +170,7 @@ def run_model():
                 if len(bot.quest_rep[num]) == 1:
                     a = 1
                     question = bot.quest_rep[num][0]
-                        
+
         if a == 1:
             try:
                 history.append(question)
@@ -192,13 +190,13 @@ def run_model():
 
             except:
                 text = "Je ne comprends pas la question!"
-                
+
             # Envoi de la réponse
             print("\nQuestion n°:", num)
             print("Question:", bot.quest_rep[num])
             print("Response:", text)
             bot.quest_rep[num].append(text)
-            
+
 
 if __name__ == '__main__':
 

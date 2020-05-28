@@ -1,12 +1,5 @@
-
 #! /usr/bin/env python3
 
-
-"""
-It also responds to DCC CHAT invitations and echos data sent in such
-sessions.
-    dcc -- Let the bot invite you to a DCC CHAT connection.
-"""
 
 import random
 from time import sleep
