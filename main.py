@@ -28,9 +28,9 @@ from pytorch_pretrained_bert import GPT2LMHeadModel, GPT2Tokenizer, GPT2Config
 from gpt2_training.train_utils import get_eval_list_same_length, load_model, boolean_string, fix_state_dict_namespace
 
 # Serveur IRC
-SERVER = "irc.freenode.net"
+SERVER = "irc.libera.chat"
 PORT = 6667
-CHANNEL = "#labomedia"
+CHANNEL = "#lalabomedia"
 NICKNAME = "TheGeneral"
 REALNAME = "in The Prisoner Episode 6"
 

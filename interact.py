@@ -99,6 +99,17 @@ def generate_sequence(model, input_ids, position_ids=None, token_type_ids=None, 
         output = torch.cat((output, prev), dim=1)
     return output
 
+def cut_seq_to_eos(sentence, remove_id=[-1]):
+    sent=[]
+    for s in sentence:
+        if s in remove_id:
+            continue
+        if s != EOS_ID:
+            sent.append(s)
+        else:
+            break
+    return sent
+
 
 def run_model():
     parser = argparse.ArgumentParser()
@@ -107,7 +118,7 @@ def run_model():
     parser.add_argument("--load_checkpoint", '-c', type=str, default='')
     parser.add_argument("--fp16", type=boolean_string, default=False)
     parser.add_argument("--max_seq_length", type=int, default=128)
-
+    
     parser.add_argument("--generation_length", type=int, default=20)
     parser.add_argument("--max_history", type=int, default=2)
 
@@ -130,7 +141,7 @@ def run_model():
     torch.random.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
-    #### load the GPT-2 model
+    #### load the GPT-2 model 
     config = GPT2Config.from_json_file(os.path.join(args.model_name_or_path, 'config.json'))
     enc = GPT2Tokenizer.from_pretrained(args.model_name_or_path)
     model = load_model(GPT2LMHeadModel(config), args.load_checkpoint, args, verbose=True)
@@ -149,10 +160,10 @@ def run_model():
         position_ids = torch.arange(0, context_tokens.size(-1), dtype=torch.long, device=context_tokens.device)
 
         out = generate_sequence(model, context_tokens, position_ids=position_ids,
-                                length=args.generation_length, temperature=args.temperature,
-                                top_k=args.top_k, top_p= args.top_p)
+                                length=args.generation_length, temperature=args.temperature, 
+                                top_k=args.top_k, top_p= args.top_p) 
 
-        out = out.tolist()
+        out = out.tolist()                        
         text = enc.decode(cut_seq_to_eos(out[0])).encode('ascii','ignore').decode('ascii')
         print("SYS >>> ", text)
         history.append(text)
@@ -188,5 +199,5 @@ if __name__ == '__main__':
     # from_scratch: True : load model trained from scratch or False: load model trained from fine-tuning the GPT-2
     target_folder = download_model(model_size='medium', dataset='multiref', from_scratch=False)
     logger.info('Done!\n')
-
+    
     run_model()
